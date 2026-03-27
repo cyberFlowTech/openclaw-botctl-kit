@@ -26,17 +26,26 @@ Run:
 ```bash
 ./install.sh \
   --workspace "/path/to/openclaw-workspace" \
-  --state-root "/path/to/openclaw-state-root" \
   --main-agent-id "dev"
 ```
+
+If `--state-root` is omitted, the installer defaults to the workspace parent directory.
 
 Example:
 
 ```bash
 ./install.sh \
-  --workspace "$HOME/.openclaw/workspace-dev" \
-  --state-root "$HOME/.openclaw-dev" \
-  --main-agent-id "dev"
+  --workspace "$HOME/.openclaw/workspace" \
+  --main-agent-id "main"
+```
+
+If you want to pass it explicitly, use the same state root your gateway is actually reading:
+
+```bash
+./install.sh \
+  --workspace "$HOME/.openclaw/workspace" \
+  --state-root "$HOME/.openclaw" \
+  --main-agent-id "main"
 ```
 
 ## Internal Versioning
@@ -73,6 +82,7 @@ The `developer` service should send one of:
 - Bundles downloaded through `--bundle-url` are unpacked into a temporary directory and deleted after execution.
 - The `developer` side is still responsible for generating signed bundle URLs and lifecycle payloads.
 - Running `install.sh` will overwrite the installed skill and helper files at the target paths.
+- `--state-root` must point to the same OpenClaw state root your gateway is using, typically `~/.openclaw`.
 
 ## Validate Quickly
 

@@ -26,9 +26,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$WORKSPACE" || -z "$STATE_ROOT" || -z "$MAIN_AGENT_ID" ]]; then
-  echo "Usage: ./install.sh --workspace <workspace> --state-root <state-root> --main-agent-id <agent-id>" >&2
+if [[ -z "$WORKSPACE" || -z "$MAIN_AGENT_ID" ]]; then
+  echo "Usage: ./install.sh --workspace <workspace> [--state-root <state-root>] --main-agent-id <agent-id>" >&2
   exit 1
+fi
+
+if [[ -z "$STATE_ROOT" ]]; then
+  STATE_ROOT="$(cd "$(dirname "$WORKSPACE")" && pwd)"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
