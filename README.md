@@ -83,6 +83,7 @@ The `developer` service should send one of:
 - The `developer` side is still responsible for generating signed bundle URLs and lifecycle payloads.
 - Running `install.sh` will overwrite the installed skill and helper files at the target paths.
 - `--state-root` must point to the same OpenClaw state root your gateway is using, typically `~/.openclaw`.
+- For Zapry / `openapi` bots, `create` now provisions `channels.zapry.accounts.<botId>` and the matching `bindings` route so polling can start before later publish/activate steps.
 
 ## Validate Quickly
 
@@ -95,3 +96,8 @@ Status: activated
 ```
 
 then the bridge is wired correctly.
+
+For Zapry / `openapi` bots, you can also validate after `create` that:
+
+- `channels.zapry.accounts.<botId>` exists in `openclaw.json`
+- a `bindings` route exists from account `<botId>` to agent `<tenantId>-<botId>`

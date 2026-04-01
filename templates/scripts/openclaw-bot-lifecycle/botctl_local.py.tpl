@@ -109,11 +109,26 @@ def touch_meta(cfg: dict) -> None:
 
 
 def channel_name(platform_type: str) -> str:
-    return "telegram" if platform_type == "telegram" else ""
+    normalized = str(platform_type or "").strip().lower()
+    if normalized == "telegram":
+        return "telegram"
+    if normalized in {"openapi", "zapry"}:
+        return "zapry"
+    return ""
 
 
 def supports_channel_config(platform_type: str) -> bool:
     return channel_name(platform_type) != ""
+
+
+def sync_channel_account_and_route(cfg: dict, *, platform_type: str, bot: dict, agent_id: str) -> bool:
+    channel = channel_name(platform_type)
+    bot_id = str(bot.get("botId") or "").strip()
+    if channel == "" or bot_id == "":
+        return False
+    upsert_channel_account(cfg, platform_type=platform_type, bot=bot)
+    upsert_route(cfg, channel=channel, account_id=bot_id, agent_id=agent_id)
+    return True
 
 
 def agent_id_for(bot_id: str, tenant_id: str) -> str:
@@ -400,6 +415,9 @@ def run_create(bot: dict) -> None:
     bot_id = str(bot["botId"]).strip()
     root = bot_root(bot_id)
     status = "updated" if root.exists() else "created"
+    platform_type = str(bot.get("platformType") or "openapi").strip().lower() or "openapi"
+    tenant_id = str(bot.get("tenantId") or "").strip()
+    agent_id = agent_id_for(bot_id, tenant_id)
     root.mkdir(parents=True, exist_ok=True)
     write_json(
         root / "bot.json",
@@ -420,6 +438,13 @@ def run_create(bot: dict) -> None:
             "updatedAt": now_rfc3339(),
         },
     )
+    cfg = load_json(OPENCLAW_CONFIG_PATH, {})
+    ensure(isinstance(cfg, dict), "openclaw config is invalid")
+    if sync_channel_account_and_route(cfg, platform_type=platform_type, bot=bot, agent_id=agent_id):
+        touch_meta(cfg)
+        write_json(OPENCLAW_CONFIG_PATH, cfg)
+        compact_summary("create", bot_id, status, "-", f"bot shell created and inbound channel wired to {agent_id}")
+        return
     compact_summary("create", bot_id, status, "-", "bot shell created in local workspace")
 
 
@@ -535,9 +560,8 @@ def run_activate(bot: dict, inputs: dict) -> None:
     primary_model = sync_managed_model_config(agent_dir, agent_id, bot_payload)
     cfg = load_json(OPENCLAW_CONFIG_PATH, {})
     ensure(isinstance(cfg, dict), "openclaw config is invalid")
-    if supports_channel_config(platform_type):
-        upsert_channel_account(cfg, platform_type=platform_type, bot=bot_payload)
-        upsert_route(cfg, channel=channel_name(platform_type), account_id=bot_id, agent_id=agent_id)
+    if sync_channel_account_and_route(cfg, platform_type=platform_type, bot=bot_payload, agent_id=agent_id):
+        pass
     else:
         remove_channel_account_and_route(cfg, channel="zapry", account_id=bot_id)
     upsert_agent(cfg, agent_id=agent_id, name=str(bot_payload.get("botName") or bot_id).strip(), workspace_dir=workspace_dir, agent_dir=agent_dir, primary_model=primary_model)
