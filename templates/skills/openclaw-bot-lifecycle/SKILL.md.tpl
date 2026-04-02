@@ -30,24 +30,30 @@ If any guard fails, return a refusal with the exact reason.
 1. For `BOTCTL_URL:` execute:
 
 ```bash
-python3 __OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py --bundle-url "<exact-url>"
+__OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py --bundle-url "<exact-url>"
 ```
 
 2. For `BOTCTL_FILE:` execute:
 
 ```bash
-python3 __OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py "<exact-payload-file>"
+__OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py "<exact-payload-file>"
 ```
 
 3. For inline `BOTCTL:` JSON, write to `/tmp/` and execute the helper with that file.
 4. Wait for the helper to exit and return the script output as the final result.
 
+Important:
+
+- Execute the helper script directly.
+- Do **not** wrap it with `python3 ...`.
+- This is required so script-path allowlists can match reliably for `create`, `publish`, `activate`, and `delete`.
+
 ## Expected lifecycle behavior
 
-- `create`: create or update the managed bot shell, and for channel-backed bots also provision the inbound account and route in local OpenClaw state
+- `create`: create or update the managed bot shell, and for channel-backed bots also provision the inbound account and route in local OpenClaw state; if the wiring is missing after write, fail the action
 - `publish`: copy staged files into the managed bot workspace without removing the inbound account or route created during `create`
-- `activate`: materialize runtime-ready workspace, agent config, session metadata, and keep the inbound channel wiring in sync
-- `delete`: remove only the target bot's managed files, account, route, and dedicated runtime state
+- `activate`: materialize runtime-ready workspace, agent config, session metadata, and keep the inbound channel wiring in sync; if the wiring is missing after write, fail the action
+- `delete`: remove only the target bot's managed files, account, route, and dedicated runtime state; if the account or route still remains after write, fail the action
 
 ## Response format
 

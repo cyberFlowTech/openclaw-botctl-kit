@@ -83,7 +83,9 @@ The `developer` service should send one of:
 - The `developer` side is still responsible for generating signed bundle URLs and lifecycle payloads.
 - Running `install.sh` will overwrite the installed skill and helper files at the target paths.
 - `--state-root` must point to the same OpenClaw state root your gateway is using, typically `~/.openclaw`.
+- The lifecycle helper should be executed directly as `.../botctl_local.py <payload>` or `.../botctl_local.py --bundle-url <url>`. Do not wrap it with `python3`, otherwise script-path allowlists may not match.
 - For Zapry / `openapi` bots, `create` now provisions `channels.zapry.accounts.<botId>` and the matching `bindings` route so polling can start before later publish/activate steps.
+- For Zapry / `openapi` bots, `create` and `activate` now fail if the expected account/route wiring is not present after writing `openclaw.json`, and `delete` fails if the target account/route still remains after cleanup.
 
 ## Validate Quickly
 

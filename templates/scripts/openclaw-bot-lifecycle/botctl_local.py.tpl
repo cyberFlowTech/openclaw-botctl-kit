@@ -133,6 +133,36 @@ def sync_channel_account_and_route(cfg: dict, *, platform_type: str, bot: dict, 
     return True
 
 
+def ensure_channel_account_and_route(cfg: dict, *, channel: str, account_id: str, agent_id: str) -> None:
+    account = ((((cfg.get("channels") or {}).get(channel) or {}).get("accounts") or {}).get(account_id))
+    ensure(account is not None, f"{channel} account not created for {account_id}")
+
+    bindings = cfg.get("bindings") or []
+    route_ok = any(
+        item.get("type") == "route"
+        and str(((item.get("match") or {}).get("channel") or "")).strip().lower() == channel
+        and str(((item.get("match") or {}).get("accountId") or "")).strip() == account_id
+        and str(item.get("agentId") or "").strip() == agent_id
+        for item in bindings
+    )
+    ensure(route_ok, f"{channel} route not created for {account_id} -> {agent_id}")
+
+
+def ensure_channel_account_and_route_removed(cfg: dict, *, channel: str, account_id: str, agent_id: str) -> None:
+    account = ((((cfg.get("channels") or {}).get(channel) or {}).get("accounts") or {}).get(account_id))
+    ensure(account is None, f"{channel} account still present for {account_id}")
+
+    bindings = cfg.get("bindings") or []
+    route_exists = any(
+        item.get("type") == "route"
+        and str(((item.get("match") or {}).get("channel") or "")).strip().lower() == channel
+        and str(((item.get("match") or {}).get("accountId") or "")).strip() == account_id
+        and str(item.get("agentId") or "").strip() == agent_id
+        for item in bindings
+    )
+    ensure(not route_exists, f"{channel} route still present for {account_id} -> {agent_id}")
+
+
 def agent_id_for(bot_id: str, tenant_id: str) -> str:
     tenant = str(tenant_id or "").strip()
     return f"{tenant}-{bot_id}" if tenant else bot_id
@@ -362,13 +392,17 @@ def upsert_channel_account(cfg: dict, *, platform_type: str, bot: dict) -> None:
     if channel == "telegram":
         accounts[bot_id] = {**existing, "enabled": True, "name": bot.get("botName") or bot_id, "botToken": bot.get("botToken") or existing.get("botToken") or ""}
         return
+    bot_token = str(bot.get("botToken") or existing.get("botToken") or "").strip()
+    api_base_url = str(bot.get("openapiBaseUrl") or existing.get("apiBaseUrl") or "").strip()
+    ensure(bot_token != "", f"{channel} botToken is required for {bot_id}")
+    ensure(api_base_url != "", f"{channel} apiBaseUrl is required for {bot_id}")
     channel_cfg.setdefault("mode", "polling")
     accounts[bot_id] = {
         **existing,
         "enabled": True,
         "name": bot.get("botName") or bot_id,
-        "botToken": bot.get("botToken") or existing.get("botToken") or "",
-        "apiBaseUrl": bot.get("openapiBaseUrl") or existing.get("apiBaseUrl") or "",
+        "botToken": bot_token,
+        "apiBaseUrl": api_base_url,
         "mode": existing.get("mode") or channel_cfg.get("mode") or "polling",
     }
 
@@ -442,9 +476,14 @@ def run_create(bot: dict) -> None:
     )
     cfg = load_json(OPENCLAW_CONFIG_PATH, {})
     ensure(isinstance(cfg, dict), "openclaw config is invalid")
+    channel = channel_name(platform_type)
     if sync_channel_account_and_route(cfg, platform_type=platform_type, bot=bot, agent_id=agent_id):
+        ensure_channel_account_and_route(cfg, channel=channel, account_id=bot_id, agent_id=agent_id)
         touch_meta(cfg)
         write_json(OPENCLAW_CONFIG_PATH, cfg)
+        persisted_cfg = load_json(OPENCLAW_CONFIG_PATH, {})
+        ensure(isinstance(persisted_cfg, dict), "persisted openclaw config is invalid")
+        ensure_channel_account_and_route(persisted_cfg, channel=channel, account_id=bot_id, agent_id=agent_id)
         compact_summary("create", bot_id, status, "-", f"bot shell created and inbound channel wired to {agent_id}")
         return
     compact_summary("create", bot_id, status, "-", "bot shell created in local workspace")
@@ -512,6 +551,8 @@ def run_delete(bot: dict) -> None:
     root = bot_root(bot_id)
     managed_bot = load_json(root / "bot.json", {}) if root.exists() else {}
     bot_payload = {**managed_bot, **(bot or {})}
+    platform_type = str(bot_payload.get("platformType") or "openapi").strip().lower() or "openapi"
+    channel = channel_name(platform_type)
     tenant_id = str(bot_payload.get("tenantId") or "").strip()
     agent_id = agent_id_for(bot_id, tenant_id)
     changed = False
@@ -523,6 +564,15 @@ def run_delete(bot: dict) -> None:
         changed = True
     touch_meta(cfg)
     write_json(OPENCLAW_CONFIG_PATH, cfg)
+    persisted_cfg = load_json(OPENCLAW_CONFIG_PATH, {})
+    ensure(isinstance(persisted_cfg, dict), "persisted openclaw config is invalid")
+    if channel:
+        ensure_channel_account_and_route_removed(
+            persisted_cfg,
+            channel=channel,
+            account_id=bot_id,
+            agent_id=agent_id,
+        )
     workspace_dir = OPENCLAW_STATE_ROOT / f"workspace-{agent_id}"
     if workspace_dir.exists():
         shutil.rmtree(workspace_dir)
@@ -562,13 +612,19 @@ def run_activate(bot: dict, inputs: dict) -> None:
     primary_model = sync_managed_model_config(agent_dir, agent_id, bot_payload)
     cfg = load_json(OPENCLAW_CONFIG_PATH, {})
     ensure(isinstance(cfg, dict), "openclaw config is invalid")
+    channel = channel_name(platform_type)
     if sync_channel_account_and_route(cfg, platform_type=platform_type, bot=bot_payload, agent_id=agent_id):
+        ensure_channel_account_and_route(cfg, channel=channel, account_id=bot_id, agent_id=agent_id)
         pass
     else:
         remove_channel_account_and_route(cfg, channel="zapry", account_id=bot_id)
     upsert_agent(cfg, agent_id=agent_id, name=str(bot_payload.get("botName") or bot_id).strip(), workspace_dir=workspace_dir, agent_dir=agent_dir, primary_model=primary_model)
     touch_meta(cfg)
     write_json(OPENCLAW_CONFIG_PATH, cfg)
+    persisted_cfg = load_json(OPENCLAW_CONFIG_PATH, {})
+    ensure(isinstance(persisted_cfg, dict), "persisted openclaw config is invalid")
+    if channel:
+        ensure_channel_account_and_route(persisted_cfg, channel=channel, account_id=bot_id, agent_id=agent_id)
     session_key, _store_path = ensure_session(agent_id, bot_payload)
     version = inputs.get("version") or {}
     version_id = str(version.get("id") or published.get("versionId") or "").strip() or "-"
