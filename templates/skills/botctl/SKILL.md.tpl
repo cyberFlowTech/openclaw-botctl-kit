@@ -19,19 +19,25 @@ OpenClaw may prepend a timestamp prefix before the actual message text. Ignore t
 5. If the message contains `BOTCTL_URL:`, extract the exact bundle URL after the first `BOTCTL_URL:` marker and execute:
 
 ```bash
-python3 __OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py --bundle-url "<exact-url>"
+__OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py --bundle-url "<exact-url>"
 ```
 
 6. If the message does not contain `BOTCTL_URL:` but contains `BOTCTL_FILE:`, extract the exact payload file path and execute:
 
 ```bash
-python3 __OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py "<exact-payload-file>"
+__OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py "<exact-payload-file>"
 ```
 
 7. If the message contains only `BOTCTL:`, parse the JSON after the first marker and write it to a temporary file under `/tmp/`, then execute the helper with that file.
 8. Never run the helper without exactly one input source.
 9. Never run the helper in the background.
 10. Wait for the helper to finish and return its stdout exactly as the final answer.
+
+## Execution note
+
+- Execute the helper script directly.
+- Do **not** wrap it with `python3 ...`.
+- This is required so script-path allowlists can match reliably for `create`, `publish`, `activate`, and `delete`.
 
 ## Local environment assumptions
 
