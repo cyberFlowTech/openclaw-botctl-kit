@@ -1,6 +1,6 @@
 ---
 name: openclaw-bot-lifecycle
-description: "Execute standardized BOTCTL payloads locally through the installed helper script."
+description: "Execute standardized BOTCTL payloads locally through __OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py. Never use sessions_spawn/subagents and never invoke a generic botctl CLI."
 ---
 
 # OpenClaw Bot Lifecycle
@@ -46,6 +46,8 @@ Important:
 
 - Execute the helper script directly.
 - Do **not** wrap it with `python3 ...`.
+- Do **not** call `sessions_spawn` or any subagent tool for BOTCTL handling.
+- Do **not** execute a shell command named `botctl`.
 - This is required so script-path allowlists can match reliably for `create`, `publish`, `activate`, and `delete`.
 
 ## Expected lifecycle behavior

@@ -266,6 +266,20 @@ def upsert_agent(cfg: dict, *, agent_id: str, name: str, workspace_dir: Path, ag
         "name": name or agent_id,
         "workspace": str(workspace_dir.resolve()),
         "agentDir": str(agent_dir.resolve()),
+        "tools": {
+            "profile": "coding",
+            "alsoAllow": ["message", "pdf", "zapry_action", "zapry_post"],
+            "deny": [
+                "exec",
+                "process",
+                "sessions_list",
+                "sessions_history",
+                "sessions_send",
+                "sessions_spawn",
+                "subagents",
+                "session_status",
+            ],
+        },
     }
     normalized_model = str(primary_model or "").strip()
     if normalized_model:

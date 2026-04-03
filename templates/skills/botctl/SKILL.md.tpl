@@ -1,6 +1,6 @@
 ---
 name: botctl
-description: "Trigger immediately when a user message contains BOTCTL_URL:, BOTCTL_FILE:, or BOTCTL: near the start. Prefer BOTCTL_URL when present, then BOTCTL_FILE."
+description: "Trigger immediately when a user message contains BOTCTL_URL:, BOTCTL_FILE:, or BOTCTL: near the start. Execute __OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py directly, never use sessions_spawn/subagents, and never invoke a generic botctl CLI."
 metadata: {"openclaw":{"always":true}}
 ---
 
@@ -32,6 +32,8 @@ __OPENCLAW_WORKSPACE__/scripts/openclaw-bot-lifecycle/botctl_local.py "<exact-pa
 8. Never run the helper without exactly one input source.
 9. Never run the helper in the background.
 10. Wait for the helper to finish and return its stdout exactly as the final answer.
+11. Never use `sessions_spawn`, subagents, or delegation for BOTCTL handling.
+12. Never execute a shell command named `botctl`; the installed helper script is the only valid command path.
 
 ## Execution note
 
