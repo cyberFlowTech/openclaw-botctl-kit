@@ -397,7 +397,7 @@ def upsert_channel_account(cfg: dict, *, platform_type: str, bot: dict, enabled:
     bot_id = str(bot.get("botId") or "").strip()
     existing = accounts.get(bot_id) or {}
     if channel == "telegram":
-        accounts[bot_id] = {**existing, "enabled": True, "name": bot.get("botName") or bot_id, "botToken": bot.get("botToken") or existing.get("botToken") or ""}
+        accounts[bot_id] = {**existing, "enabled": bool(enabled), "name": bot.get("botName") or bot_id, "botToken": bot.get("botToken") or existing.get("botToken") or ""}
         return
     bot_token = str(bot.get("botToken") or existing.get("botToken") or "").strip()
     api_base_url = str(bot.get("openapiBaseUrl") or existing.get("apiBaseUrl") or "").strip()
