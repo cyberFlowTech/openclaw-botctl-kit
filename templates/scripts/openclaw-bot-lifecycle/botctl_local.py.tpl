@@ -123,12 +123,19 @@ def supports_channel_config(platform_type: str) -> bool:
     return channel_name(platform_type) != ""
 
 
-def sync_channel_account_and_route(cfg: dict, *, platform_type: str, bot: dict, agent_id: str) -> bool:
+def sync_channel_account_and_route(
+    cfg: dict,
+    *,
+    platform_type: str,
+    bot: dict,
+    agent_id: str,
+    enable_account: bool = True,
+) -> bool:
     channel = channel_name(platform_type)
     bot_id = str(bot.get("botId") or "").strip()
     if channel == "" or bot_id == "":
         return False
-    upsert_channel_account(cfg, platform_type=platform_type, bot=bot)
+    upsert_channel_account(cfg, platform_type=platform_type, bot=bot, enabled=enable_account)
     upsert_route(cfg, channel=channel, account_id=bot_id, agent_id=agent_id)
     return True
 
@@ -381,7 +388,7 @@ def remove_account_references(cfg: dict, *, account_id: str, agent_id: str) -> b
     return changed
 
 
-def upsert_channel_account(cfg: dict, *, platform_type: str, bot: dict) -> None:
+def upsert_channel_account(cfg: dict, *, platform_type: str, bot: dict, enabled: bool = True) -> None:
     channel = channel_name(platform_type)
     ensure(channel != "", f"unsupported channel config for platformType={platform_type}")
     channels = cfg.setdefault("channels", {})
@@ -399,7 +406,7 @@ def upsert_channel_account(cfg: dict, *, platform_type: str, bot: dict) -> None:
     channel_cfg.setdefault("mode", "polling")
     accounts[bot_id] = {
         **existing,
-        "enabled": True,
+        "enabled": bool(enabled),
         "name": bot.get("botName") or bot_id,
         "botToken": bot_token,
         "apiBaseUrl": api_base_url,
@@ -477,7 +484,13 @@ def run_create(bot: dict) -> None:
     cfg = load_json(OPENCLAW_CONFIG_PATH, {})
     ensure(isinstance(cfg, dict), "openclaw config is invalid")
     channel = channel_name(platform_type)
-    if sync_channel_account_and_route(cfg, platform_type=platform_type, bot=bot, agent_id=agent_id):
+    if sync_channel_account_and_route(
+        cfg,
+        platform_type=platform_type,
+        bot=bot,
+        agent_id=agent_id,
+        enable_account=False if channel == "zapry" else True,
+    ):
         ensure_channel_account_and_route(cfg, channel=channel, account_id=bot_id, agent_id=agent_id)
         touch_meta(cfg)
         write_json(OPENCLAW_CONFIG_PATH, cfg)
@@ -613,7 +626,13 @@ def run_activate(bot: dict, inputs: dict) -> None:
     cfg = load_json(OPENCLAW_CONFIG_PATH, {})
     ensure(isinstance(cfg, dict), "openclaw config is invalid")
     channel = channel_name(platform_type)
-    if sync_channel_account_and_route(cfg, platform_type=platform_type, bot=bot_payload, agent_id=agent_id):
+    if sync_channel_account_and_route(
+        cfg,
+        platform_type=platform_type,
+        bot=bot_payload,
+        agent_id=agent_id,
+        enable_account=True,
+    ):
         ensure_channel_account_and_route(cfg, channel=channel, account_id=bot_id, agent_id=agent_id)
         pass
     else:
