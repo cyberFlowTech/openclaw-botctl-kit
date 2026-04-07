@@ -157,7 +157,11 @@ def ensure_channel_account_and_route(cfg: dict, *, channel: str, account_id: str
 
 def ensure_channel_account_and_route_removed(cfg: dict, *, channel: str, account_id: str, agent_id: str) -> None:
     account = ((((cfg.get("channels") or {}).get(channel) or {}).get("accounts") or {}).get(account_id))
-    ensure(account is None, f"{channel} account still present for {account_id}")
+    if channel == "zapry" and account is not None:
+        ensure(not bool(account.get("enabled")), f"{channel} account still enabled for {account_id}")
+        ensure(str(account.get("botToken") or "").strip() == "", f"{channel} account token still present for {account_id}")
+    else:
+        ensure(account is None, f"{channel} account still present for {account_id}")
 
     bindings = cfg.get("bindings") or []
     route_exists = any(
@@ -361,7 +365,15 @@ def remove_account_references(cfg: dict, *, account_id: str, agent_id: str) -> b
         channel_cfg = channel_cfg or {}
         accounts = dict((channel_cfg.get("accounts") or {}))
         if account_id in accounts:
-            del accounts[account_id]
+            if str(channel_name_value or "").strip().lower() == "zapry":
+                existing = dict(accounts.get(account_id) or {})
+                accounts[account_id] = {
+                    **existing,
+                    "enabled": False,
+                    "botToken": "",
+                }
+            else:
+                del accounts[account_id]
             changed = True
         if accounts:
             next_channel_cfg = dict(channel_cfg)
