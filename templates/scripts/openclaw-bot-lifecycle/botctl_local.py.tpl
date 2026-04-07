@@ -536,12 +536,15 @@ def run_publish(bot: dict, inputs: dict, security: dict, payload_root: Path) -> 
     staging_dir = clean_abs(str(files.get("stagingDir") or ""), payload_root)
     soul_path = clean_abs(str(files.get("soulPath") or ""), payload_root)
     skill_paths = [clean_abs(str(p), payload_root) for p in (files.get("skillPaths") or []) if str(p).strip()]
+    skill_package_roots = [clean_abs(str(p), payload_root) for p in (files.get("skillPackageRoots") or []) if str(p).strip()]
     asset_paths = [clean_abs(str(p), payload_root) for p in (files.get("assetPaths") or []) if str(p).strip()]
-    ensure(skill_paths, "files.skillPaths must contain at least one file")
+    ensure(skill_paths or skill_package_roots, "files.skillPaths or files.skillPackageRoots must contain at least one entry")
     ensure_under(staging_dir, approved_roots, "files.stagingDir escapes approvedRoots")
     ensure_under(soul_path, approved_roots, "files.soulPath escapes approvedRoots")
     for entry in skill_paths:
         ensure_under(entry, approved_roots, "a skill path escapes approvedRoots")
+    for entry in skill_package_roots:
+        ensure_under(entry, approved_roots, "a skill package root escapes approvedRoots")
     for entry in asset_paths:
         ensure_under(entry, approved_roots, "an asset path escapes approvedRoots")
 
@@ -553,6 +556,11 @@ def run_publish(bot: dict, inputs: dict, security: dict, payload_root: Path) -> 
     copy_file(soul_path, version_root / "SOUL.md")
     for entry in skill_paths:
         copy_file(entry, version_root / "skills" / entry.name)
+    for entry in skill_package_roots:
+        target_root = version_root / "skills" / entry.name
+        if target_root.exists():
+            shutil.rmtree(target_root)
+        shutil.copytree(entry, target_root)
     for entry in asset_paths:
         copy_file(entry, version_root / "assets" / entry.name)
     write_json(version_root / "manifest.json", files.get("manifest") or {})
